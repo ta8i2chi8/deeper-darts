@@ -41,6 +41,7 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
+parser.add_argument('--arch_penalty_rate', type=int, default=1000, help='penalty rate in arch search')
 args = parser.parse_args()
 
 
@@ -107,7 +108,7 @@ def main():
 
     architect = Architect(model, args)
 
-    for epoch in range(args.epochs):
+    for epoch in range(1, args.epochs + 1):
         lr = scheduler.get_last_lr()[0]
         logging.info('epoch %d lr %e', epoch, lr)
 
@@ -119,7 +120,7 @@ def main():
         print(F.softmax(model.alphas_reduce, dim=-1))
 
         # training
-        train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr)
+        train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, epoch)
         logging.info('train_acc %f', train_acc)
         writer.add_scalar('search/accuracy/train', train_acc, epoch)
         writer.add_scalar('search/loss/train', train_obj, epoch)
@@ -136,7 +137,7 @@ def main():
         utils.save(model, os.path.join(args.save, 'weights.pt'))
 
 
-def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr):
+def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, epoch):
     """
         引数： {
             train_queue: trainデータのデータローダー,
@@ -166,7 +167,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr):
         target_search = target_search.cuda(non_blocking=True)
 
         # アーキテクチャ(α)探索　（∂Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) / ∂α）
-        architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+        architect.step(input, target, input_search, target_search, lr, optimizer, epoch, unrolled=args.unrolled)
 
         # 重み(ω)学習
         optimizer.zero_grad()

@@ -18,7 +18,7 @@ import genotypes
 
 parser = argparse.ArgumentParser("cifar")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
-parser.add_argument('--batch_size', type=int, default=196, help='batch size')                      # もともとは96
+parser.add_argument('--batch_size', type=int, default=192, help='batch size')                      # もともとは96
 parser.add_argument('--learning_rate', type=float, default=0.05, help='init learning rate')        # もともとは0.025
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
@@ -95,7 +95,7 @@ def main():
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
 
-    for epoch in range(args.epochs):
+    for epoch in range(1, args.epochs + 1):
         lr = scheduler.get_last_lr()[0]
         logging.info('epoch %d lr %e', epoch, lr)
 

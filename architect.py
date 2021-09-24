@@ -12,12 +12,13 @@ class Architect(object):
     def __init__(self, model, args):
         self.network_momentum = args.momentum
         self.network_weight_decay = args.weight_decay
+        self.penalty_rate = args.arch_penalty_rate
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.arch_parameters(),
                                           lr=args.arch_learning_rate, betas=(0.5, 0.999),
                                           weight_decay=args.arch_weight_decay)
 
-    def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, unrolled):
+    def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, epoch, unrolled):
         """
             引数： {
                 input_train: trainデータ(input),
@@ -26,6 +27,7 @@ class Architect(object):
                 target_valid: validデータ(target),
                 eta: 学習率（lr）,
                 network_optimizer: 重み(ω)のoptimizer,
+                epoch: epoch数,
                 unrolled: second_orderにするか否か,
             }
         """
@@ -36,25 +38,27 @@ class Architect(object):
         # second order
         if unrolled:
             # ∂Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) / ∂α
-            self._backward_step_unrolled(input_train, target_train, input_valid, target_valid, eta, network_optimizer)
+            self._backward_step_unrolled(input_train, target_train, input_valid, target_valid, eta,
+                                                                                         network_optimizer, epoch)
         # first order
         else:
             # ∂Lval(ω,α) / ∂α
-            self._backward_step(input_valid, target_valid)
+            self._backward_step(input_valid, target_valid, epoch)
 
         # アーキテクチャパラメータ(α)のoptimizerをstep
         self.optimizer.step()
 
-    def _backward_step(self, input_valid, target_valid):
-        loss = self.model._loss(input_valid, target_valid)
+    def _backward_step(self, input_valid, target_valid, epoch):
+        loss = self.model._loss(input_valid, target_valid) + self._compute_penalty(self.model) / (self.penalty_rate * epoch)
         loss.backward()
 
-    def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer):
+    def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, epoch):
         # ω’ = ω - lr * [∂Ltrain(ω,α) / ∂ω]　に更新したmodelの作成
         unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
 
         # Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) の計算
-        unrolled_loss = unrolled_model._loss(input_valid, target_valid)
+        unrolled_loss = unrolled_model._loss(input_valid, target_valid) \
+                                            + self._compute_penalty(unrolled_model) / (self.penalty_rate * epoch)
 
         unrolled_loss.backward()
         dalpha = [v.grad for v in unrolled_model.arch_parameters()]
@@ -86,7 +90,7 @@ class Architect(object):
         # (dL/dw + weight_decay * w) の計算 (weight decayの適用）
         dtheta = _concat(torch.autograd.grad(loss, self.model.parameters())).data + self.network_weight_decay * theta
 
-        # パラメータを，theta - eta * (moment + dtheta) に設定したmodelの作成
+        # パラメータを，w - eta * (moment + dtheta) に設定したmodelの作成
         unrolled_model = self._construct_model_from_theta(theta.sub(moment + dtheta, alpha=eta))
 
         return unrolled_model
@@ -106,6 +110,16 @@ class Architect(object):
         model_dict.update(params)
         model_new.load_state_dict(model_dict)
         return model_new.cuda()
+
+    def _compute_penalty(self, model):
+        # αの各行がどのnodeからのedgeに対応しているかのlist（例: edgeが[prev_prev -> node1] => start_node=1）
+        list_start_node = [1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 5]
+
+        # penalty = sum_i(sum_j(α_ij / node))
+        penalty = 0
+        for start_node, params_row in zip(list_start_node, model.arch_parameters()):
+            penalty += torch.sum(params_row / start_node)
+        return penalty
 
     def _hessian_vector_product(self, vector, input, target, r=1e-2):
         R = r / _concat(vector).norm()  # r / L2ノルム

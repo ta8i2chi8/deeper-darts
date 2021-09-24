@@ -142,7 +142,7 @@ def main():
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.decay_period, gamma=args.gamma)
 
     best_acc_top1 = 0
-    for epoch in range(args.epochs):
+    for epoch in range(1, args.epochs + 1):
         lr = scheduler.get_last_lr()[0]
         logging.info('epoch %d lr %e', epoch, lr)
 
