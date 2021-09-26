@@ -115,7 +115,7 @@ class Architect(object):
         # αの各行がどのnodeからのedgeに対応しているかのlist（例: edgeが[prev_prev -> node1] => start_node=1）
         list_start_node = [1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 5]
 
-        # penalty = sum_i(sum_j(α_ij / node))
+        # penalty -> sum_i(sum_j(α_ij / node))
         penalty = 0
         for start_node, params_row in zip(list_start_node, model.arch_parameters()):
             penalty += torch.sum(params_row / start_node)

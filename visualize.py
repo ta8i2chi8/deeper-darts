@@ -51,5 +51,5 @@ if __name__ == '__main__':
         print("{} is not specified in genotypes.py".format(genotype_name))
         sys.exit(1)
 
-    plot(genotype.normal, f'img/batchsize128_lr0.05_alr0.0003_seed{sys.argv[2]}/normal')
-    plot(genotype.reduce, f'img/batchsize128_lr0.05_alr0.0003_seed{sys.argv[2]}/reduction')
+    plot(genotype.normal, f'img/seed{sys.argv[2]}/normal')
+    plot(genotype.reduce, f'img/seed{sys.argv[2]}/reduction')

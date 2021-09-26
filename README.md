@@ -19,7 +19,7 @@ python test_imagenet.py --auxiliary --model_path eval-EXP-20210000-000000/weight
 ```
 ## Visualization
 ```
-python visualize.py DARTS
+python visualize.py DARTS {SEED値}
 ```
 
 ***
