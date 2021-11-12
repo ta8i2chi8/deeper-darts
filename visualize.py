@@ -3,7 +3,7 @@ import genotypes
 from graphviz import Digraph
 
 
-def plot(genotype, filename):
+def plot(genotype, filename, view=True):
     g = Digraph(
         format='png',
         edge_attr=dict(fontsize='20', fontname="times"),
@@ -36,7 +36,7 @@ def plot(genotype, filename):
     for i in range(steps):
         g.edge(str(i), "c_{k}", fillcolor="gray")
 
-    g.render(filename, view=True)
+    g.render(filename, view=view)
 
 
 if __name__ == '__main__':
