@@ -137,6 +137,7 @@ class Network(nn.Module):
         k = sum(1 for i in range(self._steps) for n in range(2 + i))
         num_ops = len(PRIMITIVES)
 
+        # 標準正規分布 × 0.001
         self.alphas_normal = Variable(1e-3 * torch.randn(k, num_ops).cuda(), requires_grad=True)
         self.alphas_reduce = Variable(1e-3 * torch.randn(k, num_ops).cuda(), requires_grad=True)
         self._arch_parameters = [
@@ -159,15 +160,12 @@ class Network(nn.Module):
                 W = weights[start:end].copy()
 
                 # 重みの大きさで上位２つをエッジとして選択（各ノードは２入力だから）
-                edges = sorted(range(i + 2),
-                               key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != PRIMITIVES.index('none')))[
-                        :2]
+                edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x]))))[:2]
                 for j in edges:
                     k_best = None
                     for k in range(len(W[j])):
-                        if k != PRIMITIVES.index('none'):
-                            if k_best is None or W[j][k] > W[j][k_best]:
-                                k_best = k
+                        if k_best is None or W[j][k] > W[j][k_best]:
+                            k_best = k
                     gene.append((PRIMITIVES[k_best], j))
                 start = end
                 n += 1
