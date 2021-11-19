@@ -11,6 +11,7 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torch.backends.cudnn as cudnn
 
+import genotypes
 from model import NetworkImageNet as Network
 
 parser = argparse.ArgumentParser("imagenet")
@@ -24,7 +25,7 @@ parser.add_argument('--model_path', type=str, default='EXP/model.pt', help='path
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--drop_path_prob', type=float, default=0, help='drop path probability')
 parser.add_argument('--seed', type=int, default=0, help='random seed')
-parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
+parser.add_argument('--arch', type=str, default='deeperDARTS', help='which architecture to use')
 args = parser.parse_args()
 
 log_format = '%(asctime)s %(message)s'

@@ -9,6 +9,7 @@ import torch.utils
 import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
 
+import genotypes
 from model import NetworkCIFAR as Network
 
 parser = argparse.ArgumentParser("cifar")
@@ -24,7 +25,7 @@ parser.add_argument('--cutout', action='store_true', default=False, help='use cu
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
 parser.add_argument('--seed', type=int, default=0, help='random seed')
-parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
+parser.add_argument('--arch', type=str, default='deeperDARTS', help='which architecture to use')
 args = parser.parse_args()
 
 log_format = '%(asctime)s %(message)s'

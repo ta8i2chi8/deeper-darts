@@ -14,12 +14,17 @@ tensorboard --logdir=runs
 ```
 ## Pretrained models
 ```
-python test.py --auxiliary --model_path eval-EXP-20210000-000000/weights.pt
+python test.py --auxiliary --model_path logs/eval-EXP-20210000-000000/weights.pt
 python test_imagenet.py --auxiliary --model_path eval-EXP-20210000-000000/weights.pt
 ```
 ## Visualization
 ```
-python visualize.py DARTS {SEED値}
+python visualize.py deeperDARTS {SEED値}
+```
+## Create GIF from log.txt
+```
+python visualize_gif.py {FILE_NAME_DATE}
+  例：python visualize_gif.py 20211112-113450
 ```
 
 ***
