@@ -1,10 +1,24 @@
 import torch
 import numpy as np
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 
 def _concat(xs):
     return torch.cat([x.view(-1) for x in xs])
+
+
+# ペナルティ項の計算
+def _compute_penalty(model):
+    # αの各行がどのnodeからのedgeに対応しているかのlist（例: edgeが[prev_prev -> node1] => start_node=1）
+    list_start_node = [1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 5]
+
+    alphas_normal_squared = torch.pow(F.softmax(model.alphas_normal, dim=-1), 2)
+
+    penalty = 0
+    for start_node, params_row in zip(list_start_node, alphas_normal_squared):
+        penalty += torch.sum(params_row / start_node)
+    return penalty
 
 
 class Architect(object):
@@ -12,13 +26,15 @@ class Architect(object):
     def __init__(self, model, args):
         self.network_momentum = args.momentum
         self.network_weight_decay = args.weight_decay
-        self.penalty_rate = args.arch_penalty_rate
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.arch_parameters(),
                                           lr=args.arch_learning_rate, betas=(0.5, 0.999),
                                           weight_decay=args.arch_weight_decay)
+        # for deeperDARTS
+        self.p_rate = 1
+        self.penalty = 0
 
-    def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, epoch, unrolled):
+    def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, unrolled):
         """
             引数： {
                 input_train: trainデータ(input),
@@ -38,27 +54,32 @@ class Architect(object):
         # second order
         if unrolled:
             # ∂Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) / ∂α
-            self._backward_step_unrolled(input_train, target_train, input_valid, target_valid, eta,
-                                                                                         network_optimizer, epoch)
+            self._backward_step_unrolled(input_train, target_train, input_valid, target_valid, eta, network_optimizer)
         # first order
         else:
             # ∂Lval(ω,α) / ∂α
-            self._backward_step(input_valid, target_valid, epoch)
+            self._backward_step(input_valid, target_valid)
 
         # アーキテクチャパラメータ(α)のoptimizerをstep
         self.optimizer.step()
 
-    def _backward_step(self, input_valid, target_valid, epoch):
-        loss = self.model._loss(input_valid, target_valid) + self._compute_penalty(self.model) / (self.penalty_rate * epoch)
+    def _backward_step(self, input_valid, target_valid):
+        real_loss = self.model._loss(input_valid, target_valid)
+        self.penalty = _compute_penalty(self.model)
+
+        loss = real_loss + self.penalty * self.p_rate
         loss.backward()
 
-    def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, epoch):
+    def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer):
         # ω’ = ω - lr * [∂Ltrain(ω,α) / ∂ω]　に更新したmodelの作成
         unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
 
-        # Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) の計算
-        unrolled_loss = unrolled_model._loss(input_valid, target_valid) \
-                                            + self._compute_penalty(unrolled_model) / (self.penalty_rate * epoch)
+        # loss: Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) と　penalty の計算
+        real_loss = unrolled_model._loss(input_valid, target_valid)
+        self.penalty = _compute_penalty(unrolled_model)
+
+        # loss と penalty　の和
+        unrolled_loss = real_loss + self.penalty * self.p_rate
 
         unrolled_loss.backward()
         dalpha = [v.grad for v in unrolled_model.arch_parameters()]
@@ -110,16 +131,6 @@ class Architect(object):
         model_dict.update(params)
         model_new.load_state_dict(model_dict)
         return model_new.cuda()
-
-    def _compute_penalty(self, model):
-        # αの各行がどのnodeからのedgeに対応しているかのlist（例: edgeが[prev_prev -> node1] => start_node=1）
-        list_start_node = [1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 5]
-
-        # penalty -> sum_i(sum_j(α_ij / node))
-        penalty = 0
-        for start_node, params_row in zip(list_start_node, model.arch_parameters()):
-            penalty += torch.sum(params_row / start_node)
-        return penalty
 
     def _hessian_vector_product(self, vector, input, target, r=1e-2):
         R = r / _concat(vector).norm()  # r / L2ノルム

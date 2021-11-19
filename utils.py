@@ -99,6 +99,7 @@ def save(model, model_path):
 def load(model, model_path):
     model.load_state_dict(torch.load(model_path))
 
+
 # 確率の応じて，バッチ毎にエッジごと切る
 def drop_path(x, drop_prob):
     if drop_prob > 0.:
