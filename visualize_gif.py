@@ -42,7 +42,7 @@ def get_genotypes(log_path):
 def create_gif(img_path, output_name):
     files = sorted(glob.glob(img_path + '/*.png'))
     images = list(map(lambda file: Image.open(file), files))
-    resized_images = [resize_img(image, n + 1, 1500, 600) for n, image in enumerate(images)]
+    resized_images = [resize_img(image, n + 1, 1800, 600) for n, image in enumerate(images)]
     resized_images[0].save(output_name, save_all=True, append_images=resized_images[1:], duration=300, loop=0)
 
 
@@ -55,8 +55,8 @@ if __name__ == '__main__':
 
     # Genotypeからpngを生成（各エポックに対して）
     for i, geno in enumerate(genos):
-        plot(geno.normal, f'gif/normal/epoch{i + 1}', False)
-        plot(geno.reduce, f'gif/reduction/epoch{i + 1}', False)
+        plot(geno.normal, 'gif/normal/epoch{:02}'.format(i + 1), False)
+        plot(geno.reduce, 'gif/reduction/epoch{:02}'.format(i + 1), False)
 
     # gifの生成
     create_gif('gif/normal', 'gif/normal.gif')

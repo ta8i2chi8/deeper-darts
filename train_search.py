@@ -41,7 +41,7 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
-parser.add_argument('--arch_penalty_rate', type=int, default=1, help='penalty rate in arch search')
+parser.add_argument('--arch_penalty_rate', type=float, default=1, help='penalty rate in arch search')
 args = parser.parse_args()
 
 
