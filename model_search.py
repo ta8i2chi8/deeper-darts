@@ -150,29 +150,8 @@ class Network(nn.Module):
 
     # 選択されたoperationをGenotypeとして出力
     def genotype(self):
-
-        def _parse(weights):
-            gene = []
-            n = 2
-            start = 0
-            for i in range(self._steps):
-                end = start + n
-                W = weights[start:end].copy()
-
-                # 重みの大きさで上位２つをエッジとして選択（各ノードは２入力だから）
-                edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x]))))[:2]
-                for j in edges:
-                    k_best = None
-                    for k in range(len(W[j])):
-                        if k_best is None or W[j][k] > W[j][k_best]:
-                            k_best = k
-                    gene.append((PRIMITIVES[k_best], j))
-                start = end
-                n += 1
-            return gene
-
-        gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
-        gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
+        gene_normal = self._parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
+        gene_reduce = self._parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
 
         concat = range(2 + self._steps - self._multiplier, self._steps + 2)
         genotype = Genotype(
@@ -180,3 +159,23 @@ class Network(nn.Module):
             reduce=gene_reduce, reduce_concat=concat
         )
         return genotype
+
+    def _parse(self, weights):
+        gene = []
+        n = 2
+        start = 0
+        for i in range(self._steps):
+            end = start + n
+            W = weights[start:end].copy()
+
+            # 重みの大きさで上位２つをエッジとして選択（各ノードは２入力だから）
+            edges = sorted(range(i + 2), key=lambda x: -max(W[x]))[:2]
+            for j in edges:
+                k_best = None
+                for k in range(len(W[j])):
+                    if k_best is None or W[j][k] > W[j][k_best]:
+                        k_best = k
+                gene.append((PRIMITIVES[k_best], j))
+            start = end
+            n += 1
+        return gene
