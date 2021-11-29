@@ -11,7 +11,7 @@ def _concat(xs):
 # ペナルティ項の計算
 def _compute_penalty(model):
     # αの各行がどのnodeからのedgeに対応しているかのlist（例: edgeが[prev_prev -> node1] => start_node=1）
-    list_start_node = [1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 5]
+    list_start_node = [1, 1, 1, 1, 2, 1, 1, 2, 3, 1, 1, 2, 3, 4]
 
     alphas_normal_squared = torch.pow(F.softmax(model.alphas_normal, dim=-1), 2)
 
