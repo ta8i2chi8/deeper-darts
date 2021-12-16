@@ -5,6 +5,7 @@ import glob
 from visualize import plot
 from genotypes import Genotype
 
+"""メモ： lod.txtから行数を指定してgenotypeを取得しているため，batch_sizeが変わると動かない可能性あり"""
 
 def resize_img(img, epoch, width, height):
     # 作りたいサイズの白紙画像を生成

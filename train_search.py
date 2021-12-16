@@ -41,7 +41,8 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
-parser.add_argument('--arch_penalty_rate', type=float, default=1, help='penalty rate in arch search')
+parser.add_argument('--arch_reg_rate', type=float, default=1, help='regularization rate in arch search')
+parser.add_argument('--arch_sn_width', type=float, default=0.3, help='the width of start_node in arch search')
 args = parser.parse_args()
 
 
@@ -120,17 +121,17 @@ def main():
         print(F.softmax(model.alphas_reduce, dim=-1))
 
         # ペナルティ項の大きさを更新
-        architect.p_rate = args.arch_penalty_rate * (args.epochs - epoch) / args.epochs
+        architect.r_rate = args.arch_reg_rate * (args.epochs - epoch) / args.epochs
 
-        # training
+        # train
         train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr)
         logging.info('train_acc %f', train_acc)
         writer.add_scalar('search/accuracy/train', train_acc, epoch)
         writer.add_scalar('search/loss/train', train_obj, epoch)
-        writer.add_scalar('search/real_penalty', architect.penalty, epoch)
-        writer.add_scalar('search/real_penalty * p_rate', architect.penalty * architect.p_rate, epoch)
+        writer.add_scalar('search/real_penalty', architect.reg, epoch)
+        writer.add_scalar('search/real_penalty * p_rate', architect.reg * architect.r_rate, epoch)
 
-        # validation
+        # inference
         valid_acc, valid_obj = infer(valid_queue, model, criterion)
         logging.info('valid_acc %f', valid_acc)
         writer.add_scalar('search/accuracy/valid', valid_acc, epoch)
@@ -158,7 +159,6 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr):
     objs = utils.AvgrageMeter()
     top1 = utils.AvgrageMeter()
     top5 = utils.AvgrageMeter()
-
     valid_queue_iter = iter(valid_queue)
 
     model.train()

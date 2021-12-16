@@ -148,13 +148,13 @@ def main():
 
         model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-        # training
+        # train
         train_acc, train_obj = train(train_queue, model, criterion_smooth, optimizer)
         logging.info('train_acc %f', train_acc)
         writer.add_scalar('eval_imagenet/accuracy_top1/train', train_acc, epoch)
         writer.add_scalar('eval_imagenet/loss/train', train_obj, epoch)
 
-        # validation
+        # inference
         valid_acc_top1, valid_acc_top5, valid_obj = infer(valid_queue, model, criterion)
         logging.info('valid_acc_top1 %f', valid_acc_top1)
         logging.info('valid_acc_top5 %f', valid_acc_top5)

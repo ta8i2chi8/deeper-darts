@@ -26,8 +26,11 @@ class Cell(nn.Module):
         super(Cell, self).__init__()
         self.reduction = reduction
 
-        # 前の前の出力チャネルを2倍にする
+        # preprocess0,1の役割：
+        # セルの最後にconcatがあるため，前のセルからの入力のチャネル数がmultiplier(今回は4)倍になる。
+        # これをCチャネルに戻す役割。
         if reduction_prev:
+            # 前の前の出力サイズを1/2にする(前の出力サイズが1/2なので合わせるため)
             self.preprocess0 = FactorizedReduce(C_prev_prev, C, affine=False)
         else:
             self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0, affine=False)
@@ -37,7 +40,6 @@ class Cell(nn.Module):
         self._multiplier = multiplier
 
         self._ops = nn.ModuleList()
-        self._bns = nn.ModuleList()
 
         # 各エッジの作成
         # i: 中間ノードのindex
@@ -55,6 +57,7 @@ class Cell(nn.Module):
         states = [s0, s1]
         offset = 0
         for i in range(self._steps):
+            # 同じノードに向かうエッジ出力の和
             s = sum(self._ops[offset + j](h, weights[offset + j]) for j, h in enumerate(states))
             offset += len(states)
             states.append(s)
@@ -82,7 +85,7 @@ class Network(nn.Module):
         self._num_classes = num_classes
         self._layers = layers
         self._criterion = criterion
-        self._steps = steps
+        self.steps = steps
         self._multiplier = multiplier
 
         C_curr = stem_multiplier * C
@@ -134,7 +137,7 @@ class Network(nn.Module):
 
     # アーキテクチャのパラメータを初期化
     def _initialize_alphas(self):
-        k = sum(1 for i in range(self._steps) for n in range(2 + i))
+        k = sum(1 for i in range(self.steps) for n in range(2 + i))
         num_ops = len(PRIMITIVES)
 
         # 標準正規分布 × 0.001
@@ -153,7 +156,7 @@ class Network(nn.Module):
         gene_normal = self._parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
         gene_reduce = self._parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
 
-        concat = range(2 + self._steps - self._multiplier, self._steps + 2)
+        concat = range(2 + self.steps - self._multiplier, self.steps + 2)
         genotype = Genotype(
             normal=gene_normal, normal_concat=concat,
             reduce=gene_reduce, reduce_concat=concat
@@ -164,7 +167,7 @@ class Network(nn.Module):
         gene = []
         n = 2
         start = 0
-        for i in range(self._steps):
+        for i in range(self.steps):
             end = start + n
             W = weights[start:end].copy()
 

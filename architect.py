@@ -8,19 +8,6 @@ def _concat(xs):
     return torch.cat([x.view(-1) for x in xs])
 
 
-# ペナルティ項の計算
-def _compute_penalty(model):
-    # αの各行がどのnodeからのedgeに対応しているかのlist（例: edgeが[prev_prev -> node1] => start_node=1）
-    list_start_node = [1, 1, 1, 1, 2, 1, 1, 2, 3, 1, 1, 2, 3, 4]
-
-    alphas_normal_squared = torch.pow(F.softmax(model.alphas_normal, dim=-1), 2)
-
-    penalty = 0
-    for start_node, params_row in zip(list_start_node, alphas_normal_squared):
-        penalty += torch.sum(params_row / start_node)
-    return penalty
-
-
 class Architect(object):
 
     def __init__(self, model, args):
@@ -31,8 +18,9 @@ class Architect(object):
                                           lr=args.arch_learning_rate, betas=(0.5, 0.999),
                                           weight_decay=args.arch_weight_decay)
         # for deeperDARTS
-        self.p_rate = 1
-        self.penalty = 0
+        self.sn_width = args.arch_sn_width
+        self.r_rate = 1
+        self.reg = 0
 
     def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, unrolled):
         """
@@ -43,7 +31,6 @@ class Architect(object):
                 target_valid: validデータ(target),
                 eta: 学習率（lr）,
                 network_optimizer: 重み(ω)のoptimizer,
-                epoch: epoch数,
                 unrolled: second_orderにするか否か,
             }
         """
@@ -65,21 +52,21 @@ class Architect(object):
 
     def _backward_step(self, input_valid, target_valid):
         real_loss = self.model._loss(input_valid, target_valid)
-        self.penalty = _compute_penalty(self.model)
+        self.reg = self._compute_reg(self.model)
 
-        loss = real_loss + self.penalty * self.p_rate
+        loss = real_loss + self.reg * self.r_rate
         loss.backward()
 
     def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer):
         # ω’ = ω - lr * [∂Ltrain(ω,α) / ∂ω]　に更新したmodelの作成
         unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
 
-        # loss: Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) と　penalty の計算
+        # loss: Lval(ω - lr * [∂Ltrain(ω,α) / ∂ω],α) と　正則化項 の計算
         real_loss = unrolled_model._loss(input_valid, target_valid)
-        self.penalty = _compute_penalty(unrolled_model)
+        self.reg = self._compute_reg(unrolled_model)
 
-        # loss と penalty　の和
-        unrolled_loss = real_loss + self.penalty * self.p_rate
+        # loss と 正則化項　の和
+        unrolled_loss = real_loss + self.reg * self.r_rate
 
         unrolled_loss.backward()
         dalpha = [v.grad for v in unrolled_model.arch_parameters()]
@@ -89,6 +76,7 @@ class Architect(object):
         for g, ig in zip(dalpha, implicit_grads):
             g.data.sub_(ig.data, alpha=eta)
 
+        # unrolled_modelのαから，元のαへコピー
         for v, g in zip(self.model.arch_parameters(), dalpha):
             if v.grad is None:
                 v.grad = Variable(g.data)
@@ -148,3 +136,23 @@ class Architect(object):
             p.data.add_(v, alpha=R)
 
         return [(x - y).div_(2 * R) for x, y in zip(grads_p, grads_n)]
+
+    # 正則化項の計算
+    def _compute_reg(self, model):
+        # αの各行がどのnodeからのedgeに対応しているかのlist（例: edgeが[prev_prev -> node1] => start_node=1）
+        # list_start_node = [1, 1, 1, 1, 1.3, 1, 1, 1.3, 1.6, 1, 1, 1.3, 1.6, 1.9]  # 幅0.3
+        n_in_node = 2
+        list_start_node = []
+        for i in range(self.model.steps):
+            for j in range(i + n_in_node):
+                if j >= 2:
+                    list_start_node.append(1 + self.sn_width * (j - 1))
+                else:
+                    list_start_node.append(1)
+
+        alphas_normal_squared = torch.pow(F.softmax(model.alphas_normal, dim=-1), 2)
+
+        reg = 0
+        for start_node, params_row in zip(list_start_node, alphas_normal_squared):
+            reg += torch.sum(params_row / start_node)
+        return reg

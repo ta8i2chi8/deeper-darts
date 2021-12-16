@@ -90,7 +90,7 @@ class Zero(nn.Module):
         return x[:, :, ::self.stride, ::self.stride].mul(0.)
 
 
-# 前の前のセルの出力チャネル数が2倍になっていない場合に，２倍にする処理
+# 前の前のセルの出力サイズが1/2になっていない場合に，1/2(stride=2によって)にするオペレーション
 class FactorizedReduce(nn.Module):
 
     def __init__(self, C_in, C_out, affine=True):

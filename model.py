@@ -10,8 +10,11 @@ class Cell(nn.Module):
         super(Cell, self).__init__()
         print(C_prev_prev, C_prev, C)
 
-        # 前の前の出力チャネルを2倍にする
+        # preprocess0,1の役割：
+        # セルの最後にconcatがあるため，前のセルからの入力のチャネル数がmultiplier(今回は4)倍になる。
+        # これをCチャネルに戻す役割。
         if reduction_prev:
+            # 前の前の出力サイズを1/2にする(前の出力サイズが1/2なので合わせるため)
             self.preprocess0 = FactorizedReduce(C_prev_prev, C)
         else:
             self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0)
@@ -117,8 +120,8 @@ class NetworkCIFAR(nn.Module):
                 C: 最初のチャネル数(args.init_channels),
                 num_classes: タスク(CIFAR10)のクラス数,
                 layers: セルの数,
-                auxiliary: auxiliary towerを使うかどうか（bool型）
-                genotype: operationの候補が集まったタプル
+                auxiliary: auxiliary towerを使うかどうか（bool型）,
+                genotype: operationの候補が集まったタプル,
             }
         """
         super(NetworkCIFAR, self).__init__()

@@ -101,13 +101,13 @@ def main():
 
         model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-        # training
+        # train
         train_acc, train_obj = train(train_queue, model, criterion, optimizer)
         logging.info('train_acc %f', train_acc)
         writer.add_scalar('eval_cifar10/accuracy/train', train_acc, epoch)
         writer.add_scalar('eval_cifar10/loss/train', train_obj, epoch)
 
-        # validation
+        # inference
         valid_acc, valid_obj = infer(valid_queue, model, criterion)
         logging.info('valid_acc %f', valid_acc)
         writer.add_scalar('eval_cifar10/accuracy/valid', valid_acc, epoch)

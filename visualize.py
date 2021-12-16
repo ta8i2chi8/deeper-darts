@@ -41,7 +41,7 @@ def plot(genotype, filename, view=True):
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        print("usage:\n python {} ARCH_NAME SEED".format(sys.argv[0]))
+        print("usage:\n python {} ARCH_NAME DIR_NAME".format(sys.argv[0]))
         sys.exit(1)
 
     genotype_name = sys.argv[1]
@@ -51,5 +51,5 @@ if __name__ == '__main__':
         print("{} is not specified in genotypes.py".format(genotype_name))
         sys.exit(1)
 
-    plot(genotype.normal, f'img/seed{sys.argv[2]}/normal')
-    plot(genotype.reduce, f'img/seed{sys.argv[2]}/reduction')
+    plot(genotype.normal, f'img/{sys.argv[2]}/normal')
+    plot(genotype.reduce, f'img/{sys.argv[2]}/reduction')
