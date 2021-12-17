@@ -150,9 +150,10 @@ class Architect(object):
                 else:
                     list_start_node.append(1)
 
-        alphas_normal_squared = torch.pow(F.softmax(model.alphas_normal, dim=-1), 2)
+        # a^2のとき
+        # alphas_normal_squared = torch.pow(F.softmax(model.alphas_normal, dim=-1), 2)
 
         reg = 0
-        for start_node, params_row in zip(list_start_node, alphas_normal_squared):
+        for start_node, params_row in zip(list_start_node, torch.sigmoid(model.alphas_normal)):
             reg += torch.sum(params_row / start_node)
         return reg
